@@ -37,7 +37,7 @@ int main(int argc,char *argv[])
     int hijos[MAX_HIJOS];
 
     if(atoi(argv[1]) > 0 && atoi(argv[1]) <= MAX_HIJOS 
-        && atoi(argv[2]) > 0 && atoi(argv[2]) <= MAX_TIEMPO) {     // verifico si cant hijos y tiempo son validos
+        && atoi(argv[2]) >= 0 && atoi(argv[2]) <= MAX_TIEMPO) {     // verifico si cant hijos y tiempo son validos
 
         for(i=0 ; i < atoi(argv[1]) ; i = i + 1) {   // creo la cantidad de hijos indicada
             pid = fork();   // creo un hijo
