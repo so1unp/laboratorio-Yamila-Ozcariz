@@ -10,6 +10,10 @@
 #include <math.h>
 #include <semaphore.h>
 
+//pthread_mutex_t mutex;
+sem_t tlibre, tlleno;
+pthread_mutex_t mtx;
+
 static void* producer(void*);
 static void* consumer(void*);
 
@@ -33,7 +37,11 @@ static void* producer(void *p)
     struct params *params = (struct params*) p;
 
     for (i = 0; i < params->items; i++) {
+        sem_wait(&tlibre);
+        pthread_mutex_lock(&mtx);
         params->buf->buf[i % params->buf->size] = i;
+        pthread_mutex_unlock(&mtx);
+        sem_post(&tlleno);
         // Espera una cantidad aleatoria de microsegundos.
         usleep(rand() % params->wait_prod);
     }
@@ -52,7 +60,11 @@ static void* consumer(void *p)
     int *reader_results = (int*) malloc(sizeof(int)*params->items);
 
     for (i = 0; i < params->items; i++) {
+        sem_wait(&tlleno);
+        pthread_mutex_lock(&mtx);
         reader_results[i] = params->buf->buf[i % params->buf->size];
+        pthread_mutex_unlock(&mtx);
+        sem_post(&tlibre);
         // Espera una cantidad aleatoria de microsegundos.
         usleep(rand() % params->wait_prod);
     }
@@ -79,6 +91,11 @@ int main(int argc, char** argv)
         fprintf(stderr, "\twaitc:\tnúmero de microsegundos que espera el consumidor.\n");
         exit(EXIT_FAILURE);
     }
+
+    // inicializo mutex y semaforo
+    sem_init(&tlibre, 0, atoi(argv[1]));
+    sem_init(&tlleno, 0, 0);
+    pthread_mutex_init(&mtx,NULL);
 
     struct buffer *buf;
     buf = (struct buffer*) malloc(sizeof(struct buffer));
@@ -136,6 +153,14 @@ int main(int argc, char** argv)
     // Crea productor y consumidor
     pthread_create(&producer_t, NULL, producer, params);
     pthread_create(&consumer_t, NULL, consumer, params);
+
+    pthread_join(producer_t,NULL);
+    pthread_join(consumer_t,NULL);
+
+    // Destruyo mutex y semaforo
+    sem_destroy(&tlibre);
+    sem_destroy(&tlleno);
+    pthread_mutex_destroy(&mtx);
 
     // Mi trabajo ya esta hecho ...
     pthread_exit(NULL);
