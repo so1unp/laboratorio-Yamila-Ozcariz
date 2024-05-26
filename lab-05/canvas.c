@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <sys/mman.h>
+#include <sys/stat.h>        
+#include <fcntl.h>
+
 #define HEIGHT  25  // Altura en caracteres de la pizarra
 #define WIDTH   25  // Ancho en caracteres de la pizarra
 
@@ -34,6 +38,7 @@ int main(int argc, char *argv[])
     }
 
     char option = argv[1][1];
+    int shm;
 
     switch(option) {
         case 'w':
@@ -44,9 +49,23 @@ int main(int argc, char *argv[])
             break;
         case 'c':
             printf("Crea canvas.\n");
+
+            shm = shm_open(argv[2], O_CREAT | O_RDONLY,0622);
+            if (shm == -1) {
+                perror("shm_open");
+                exit(EXIT_FAILURE);
+            }
+
             break;
         case 'd':
             printf("Borra canvas.\n");
+
+            shm = shm_unlink(argv[2]);
+            if (shm == -1) {
+                perror("shm_unlink");
+                exit(EXIT_FAILURE);
+            }
+
             break;
         case 'h':
             usage(argv);
