@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <unistd.h>
+#include <string.h>
+#include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/stat.h>        
 #include <fcntl.h>
@@ -38,24 +40,86 @@ int main(int argc, char *argv[])
     }
 
     char option = argv[1][1];
-    int shm;
+    int shm, i, j;
+    char *mmappt;
+    
+    canvas_t sh_canvas;
+
+    for (i = 0; i < HEIGHT*WIDTH ; i++) {
+        sh_canvas.canvas[i] = '*';
+    }
 
     switch(option) {
         case 'w':
             printf("Escribe %s en el canvas %s en la posición (%d, %d).\n", argv[3], argv[2], atoi(argv[4]), atoi(argv[5]));
-            break;
-        case 'p':
-            printf("Imprime canvas.\n");
-            break;
-        case 'c':
-            printf("Crea canvas.\n");
+            int x,y;
+            x = atoi(argv[4]);
+            y = atoi(argv[5]);
 
-            shm = shm_open(argv[2], O_CREAT | O_RDONLY,0622);
+            if (x < 0 || x > WIDTH-1 || y < 0 || y > HEIGHT-1) {
+                perror("Posiciones de canvas invalidas.");
+                exit(EXIT_FAILURE);
+            }
+
+            shm = shm_open(argv[2], O_WRONLY,0622);
             if (shm == -1) {
                 perror("shm_open");
                 exit(EXIT_FAILURE);
             }
 
+            mmappt = mmap(sh_canvas.canvas, sizeof(sh_canvas.canvas), PROT_WRITE, MAP_SHARED, shm, x + y*HEIGHT);
+            if (mmappt == MAP_FAILED) {
+                perror("mmap");
+                exit(EXIT_FAILURE);
+            }
+
+            memcpy(mmappt, argv[3], strlen(argv[3]));
+
+            close(shm);
+            break;
+        case 'p':
+            printf("Imprime canvas.\n");
+
+            shm = shm_open(argv[2], O_RDONLY,0622);
+            if (shm == -1) {
+                perror("shm_open");
+                exit(EXIT_FAILURE);
+            }
+
+            mmappt = mmap(sh_canvas.canvas, sizeof(sh_canvas.canvas), PROT_READ, MAP_SHARED, shm, 0);
+            if (mmappt == MAP_FAILED) {
+                perror("mmap");
+                exit(EXIT_FAILURE);
+            }
+
+            for (i = 0; i < HEIGHT ; i++) {
+                for(j = 0 ; j < WIDTH ; j++) {
+                    printf("%c ", sh_canvas.canvas[i +j]);
+                    if (j == WIDTH-1) {
+                        printf("\n");
+                    }
+                }
+            }
+
+            close(shm);
+            break;
+        case 'c':
+            printf("Crea canvas.\n");
+            int size;
+            
+            shm = shm_open(argv[2], O_CREAT,0622);
+            if (shm == -1) {
+                perror("shm_open");
+                exit(EXIT_FAILURE);
+            }
+
+            size = ftruncate(shm, sizeof(sh_canvas.canvas));
+            if (size == -1) {
+                perror("ftruncate");
+                exit(EXIT_FAILURE);
+            }
+
+            close(shm);
             break;
         case 'd':
             printf("Borra canvas.\n");
