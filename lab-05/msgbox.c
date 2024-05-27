@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <unistd.h>
 #include <fcntl.h>          
 #include <sys/stat.h>        
 #include <mqueue.h>
@@ -59,8 +59,11 @@ int main(int argc, char *argv[])
     mqattr.mq_maxmsg = MSG_MAXSIZE;
     mqattr.mq_msgsize = USERNAME_MAXSIZE + TXT_SIZE + 3;
     mqattr.mq_curmsgs = 0;   // ignorar
+
     char msg[USERNAME_MAXSIZE + TXT_SIZE + 3];
     unsigned int prio=0;
+    struct mq_attr mqattr_receive;
+    int receive;
 
     switch(option) {
         case 's':
@@ -100,8 +103,41 @@ int main(int argc, char *argv[])
             break;
         case 'r':
             printf("Recibe el primer mensaje en %s\n", argv[2]);
-            struct mq_attr mqattr_receive;
-            int receive;
+            
+            mq = mq_open(argv[2], O_RDONLY);
+            if (mq == -1) {     // verifica si existe la cola de mensajes
+                perror("mq_open");
+                exit(EXIT_FAILURE);
+            } 
+            mq_getattr(mq, &mqattr_receive); 
+            mq_setattr(mq, &mqattr, &mqattr_receive);
+
+            receive = mq_receive(mq, msg, mqattr.mq_msgsize, NULL);
+            if (receive == -1) { // verifica si se pudo recibir un mensaje
+                perror("mq_receive");
+                exit(EXIT_FAILURE);
+            }
+            printf("%s \n", msg);   
+
+            mq_close(mq);
+            break;
+        case 'a':
+            printf("Imprimir todos los mensajes en %s\n", argv[2]);
+            
+            mq = mq_open(argv[2], O_RDONLY);
+            if (mq == -1) {     // verifica si existe la cola de mensajes
+                perror("mq_open");
+                exit(EXIT_FAILURE);
+            }
+            mq_getattr(mq, &mqattr_receive);
+            while (mq_receive(mq, msg, mqattr_receive.mq_msgsize, NULL) != -1) {
+                printf("%s \n", msg);
+            }
+
+            mq_close(mq);
+            break;
+        case 'l':
+            printf("Escucha indefinidamente por mensajes\n");
 
             mq = mq_open(argv[2], O_RDONLY);
             if (mq == -1) {     // verifica si existe la cola de mensajes
@@ -115,15 +151,9 @@ int main(int argc, char *argv[])
                 perror("mq_receive");
                 exit(EXIT_FAILURE);
             }
+            printf("%s \n", msg);
 
-            mq_close(mq);            
-
-            break;
-        case 'a':
-            printf("Imprimir todos los mensajes en %s\n", argv[2]);
-            break;
-        case 'l':
-            printf("Escucha indefinidamente por mensajes\n");
+            mq_close(mq);
             break;
         case 'c':
             printf("Crea la cola de mensajes %s\n", argv[2]);
