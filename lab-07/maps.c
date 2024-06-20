@@ -24,7 +24,8 @@ int main(void) {
 
     if (pid == 0) {
         // Agregar aquí el código pedido en el ejercicio.
-
+        a = a+1;
+        (*p)++;
         // Esperamos la señal SIGUSR1
         pause();
     } else {
